@@ -3,9 +3,10 @@
 GPU-accelerated ROS 2 nodes for a robot built around the NVIDIA Jetson Orin
 Nano Super. This repository is the home for everything that should run on the
 Jetson's GPU: perception, inference, image processing. Actuation lives in
-[ros2_pca9685](https://github.com/stevej52/ros2_pca9685), and the machine
-setup both repositories assume is described in that repository's
-[environment guide](https://github.com/stevej52/ros2_pca9685/blob/main/docs/environment.md).
+[ros2_pca9685](https://github.com/stevej52/ros2_pca9685), the robot's own ROS 2
+stack in [jetnano_robot](https://github.com/stevej52/jetnano_robot), and the
+machine setup all of them assume is in
+[robot-environment](https://github.com/stevej52/robot-environment).
 
 ## Target stack
 
