@@ -11,6 +11,8 @@ The installer fetches the file from this URL (the repository is public):
 
     https://raw.githubusercontent.com/stevej52/ros2_gpu_robot/claude/hopeful-curie-0svtx5/host-pc/autoinstall.yaml
 
+Install started 2026-09-19 with computer name **H2-Host** and user **steve**.
+
 ## At the host PC
 
 1. Plug in the Ethernet cable and the Ubuntu stick. In Windows: Settings,
@@ -31,20 +33,42 @@ The installer fetches the file from this URL (the repository is public):
 The machine installs, reboots by itself, and boots Ubuntu with the SSH
 server running. Nothing on the stick changes for this; it is the stock ISO.
 
-## Afterwards, from another computer on the network
+## Afterwards, from another computer on the same network
 
-    ssh <username>@<computer-name>.local
+Wait until the machine answers, then log in with steve's account password:
 
-Log in with the account password. `sudo` asks for it once per session; to
-let an unattended helper run the install script without a prompt, apply this
-once yourself, then remove the file when the setup is done:
+    ssh steve@h2-host.local
+
+Steve chose passwordless sudo for the setup, so an unattended helper can run
+the script below without a prompt. Apply it once (it asks for the password
+this one time), and remove the file when the setup is done:
 
     echo '%sudo ALL=(ALL:ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/90-nopasswd-sudo
     sudo chmod 0440 /etc/sudoers.d/90-nopasswd-sudo
 
-Then run the ROS 2 install script from robot-environment (or the runbook's
-script from the Windows partition, mounted with
-`sudo mount -t ntfs3 /dev/nvme0n1p3 /mnt/win`), set the timezone with
-`timedatectl`, and apply the dual-boot clock fix:
+Then bring the system up to date and run the same ROS 2 script as every other
+machine of the robot. Use the same `--domain-id` as the Jetson (the docs use
+7 as the example):
 
-    sudo timedatectl set-local-rtc 1 --adjust-system-clock
+    sudo apt update && sudo apt full-upgrade -y && sudo reboot
+    # wait a minute, then log in again
+    ssh steve@h2-host.local
+    git clone https://github.com/stevej52/robot-environment.git ~/robot-environment
+    ~/robot-environment/scripts/install_ros2_jazzy.sh --domain-id 7 --workspace
+
+Two dual-boot settings the script does not cover:
+
+    sudo timedatectl set-local-rtc 1 --adjust-system-clock   # keep the clock right when switching to Windows
+    sudo timedatectl set-timezone <zone>                     # e.g. America/Denver; list with: timedatectl list-timezones
+
+Check with `~/robot-environment/scripts/check_environment.sh`, then the
+two-machine test from robot-environment docs/environment.md section 4.
+
+The runbook's alternative script is on the Windows partition; reach it with
+`sudo mount -t ntfs3 /dev/nvme0n1p3 /mnt/win` and find it under
+`/mnt/win/Users/Steve/Documents/ros2-dual-boot/`. Use one script or the
+other, not both.
+
+If Windows is missing from the boot menu afterwards: set
+`GRUB_DISABLE_OS_PROBER=false` in `/etc/default/grub` and run
+`sudo update-grub`.
