@@ -11,7 +11,12 @@ The installer fetches the file from this URL (the repository is public):
 
     https://raw.githubusercontent.com/stevej52/ros2_gpu_robot/claude/hopeful-curie-0svtx5/host-pc/autoinstall.yaml
 
-Install done 2026-09-19 with computer name **H2-Host** and user **steve**.
+**Status, 2026-09-19:** done. H2-Host (user steve, 192.168.1.238) runs Ubuntu
+24.04.5 next to Windows 11, boots Ubuntu by default with Windows in the
+menu, has ROS 2 Jazzy desktop on domain 7 with `~/ros2_ws` built, and passed
+the two-machine talker/listener test against the Jetson. The clock and
+timezone are set for dual boot. No NVIDIA GPU is present (Intel UHD only),
+so GPU nodes cannot be tested on it.
 
 ## At the host PC
 
@@ -68,7 +73,8 @@ through that with nobody at a keyboard:
       printf '%s\n' "$PW" | ssh steve@h2-host.local 'sudo -S -p "" bash -c "nohup /home/steve/robot-environment/scripts/install_ros2_jazzy.sh --domain-id 7 --workspace > /home/steve/ros2-install.log 2>&1 &"'
 
 - **Passwordless sudo for the setup.** Apply once (asks for the password
-  this one time) and remove the file when the setup is done:
+  this one time) and remove the file when the setup is done. This is what
+  was used on H2-Host; the rule was removed afterwards.
 
       echo '%sudo ALL=(ALL:ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/90-nopasswd-sudo
       sudo chmod 0440 /etc/sudoers.d/90-nopasswd-sudo
@@ -82,20 +88,24 @@ machine of the robot. Use the same `--domain-id` as the Jetson (7):
     git clone https://github.com/stevej52/robot-environment.git ~/robot-environment
     ~/robot-environment/scripts/install_ros2_jazzy.sh --domain-id 7 --workspace
 
-Two dual-boot settings the script does not cover:
+Three dual-boot settings the script does not cover. The third keeps Windows
+in the boot menu after future kernel updates regenerate it; without it,
+Windows was listed only because the installer happened to detect it:
 
     sudo timedatectl set-local-rtc 1 --adjust-system-clock   # keep the clock right when switching to Windows
-    sudo timedatectl set-timezone <zone>                     # e.g. America/Denver; list with: timedatectl list-timezones
+    sudo timedatectl set-timezone America/Los_Angeles        # list with: timedatectl list-timezones
+    sudo sed -i 's/^#\?GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=false/' /etc/default/grub
+    grep -q '^GRUB_DISABLE_OS_PROBER=false' /etc/default/grub || echo 'GRUB_DISABLE_OS_PROBER=false' | sudo tee -a /etc/default/grub
+    sudo update-grub                                          # should print "Found Windows Boot Manager"
 
 Check with `~/robot-environment/scripts/check_environment.sh`, then the
 two-machine test from robot-environment docs/environment.md section 4 (the
-Jetson has to be powered on for it).
+Jetson has to be powered on for it). Known quirk: `check_environment.sh`
+reports `ros-jazzy-ros-base` even when the desktop variant is installed;
+confirm with `dpkg -l ros-jazzy-desktop` before treating that as a failed
+install.
 
 The runbook's alternative script is on the Windows partition; reach it with
 `sudo mount -t ntfs3 /dev/nvme0n1p3 /mnt/win` and find it under
 `/mnt/win/Users/Steve/Documents/ros2-dual-boot/`. Use one script or the
 other, not both.
-
-If Windows is missing from the boot menu afterwards: set
-`GRUB_DISABLE_OS_PROBER=false` in `/etc/default/grub` and run
-`sudo update-grub`.
