@@ -29,6 +29,7 @@ into a workspace and colcon finds them all:
 ```
 ros2_gpu_robot/
   gpu_tools/        gpu_info: what GPU acceleration this machine has; load_monitor: how busy it is
+  synthetic_camera/ synthetic_rgbd: a D435 stand-in on the RealSense topics, to run and measure the odometry with no camera
   docs/gpu-stack.md how CUDA, PyTorch, CuPy, TensorRT and Isaac ROS fit together on JetPack 7
   docs/roadmap.md   what the GPU is for on this robot, in what order, and what stays on the CPU
 ```

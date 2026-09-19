@@ -18,6 +18,43 @@ them again on 2026-09-19, and updated with the measured baseline of that day.
 confirms JetPack 7.2.1 (`nvidia-jetpack` candidate 7.2.1-b49) as the current
 release for this kit.
 
+## Measured on the bench, 2026-09-19 (25 W mode, CPU only)
+
+Taken on the Jetson with `load_sample` and `top`, with no D435 attached: the
+`synthetic_camera` package stood in for it, publishing a moving, textured
+corridor on the RealSense topics so `odometry.launch.py` ran unmodified.
+The stand-in's own cost is listed so it can be subtracted.
+
+| Process | CPU (one core = 100%) | Memory |
+|---|---|---|
+| `rgbd_odometry`, 640x480 offered at 28 Hz | 90.5% | 190 MB |
+| `synthetic_rgbd` (the stand-in camera; subtract) | 9.0% | 114 MB |
+| `slam_toolbox` (measured separately, lidar only) | 7.4% | 98 MB |
+| `ekf_node` | 2.0% | 38 MB |
+| `robot_state_publisher`, `joint_state_publisher` | 1 to 2% each | |
+
+- **Throughput**: 28.2 Hz offered, 8.44 Hz of `/vo` out. About 70% of the
+  frames are dropped while one core is pinned.
+- **System**: 905 MB idle, 1272 MB with sensors, odometry and SLAM up, so
+  about 6.2 GB free. That is the memory budget for steps 2 to 4.
+- **Power**: visual odometry alone adds 1.03 W (5.46 W to 6.49 W).
+- **GPU**: 0% throughout, as expected with no CUDA installed.
+
+What it settles: `rgbd_odometry` is about twelve times `slam_toolbox` and
+larger than everything else on the robot combined, so it stays the GPU
+target. It is not just expensive, it is not keeping up: on a chassis with no
+wheel encoders every dropped frame is a larger jump for the only odometry
+source. Leaving `slam_toolbox` on the CPU is confirmed. Two things remain to
+measure: the same run in MAXN_SUPER after step 0, and the real D435 in place
+of the stand-in.
+
+Worth testing on real hardware: rtabmap warned about a 33 ms gap between
+colour and depth stamps. The stand-in stamps them identically, so that is
+the approximate synchroniser pairing across dropped frames. A real D435 with
+aligned depth also carries the colour stamp, so `approx_sync: false` in
+`odometry.launch.py` may remove a class of bad pairings. Test before
+changing.
+
 ## What runs today, ranked by CPU cost
 
 From `jetnano_bringup/launch/*.launch.py` and `jetnano_navigation/config/*`:
@@ -66,12 +103,11 @@ understates the hardware, so set the mode before measuring anything.
 
 ### 1. Measure first
 
-Run `tegrastats` (or `jtop`) alongside a full `robot.launch.py` and confirm
-that `rgbd_odometry` is the hog. Everything above reasons from configuration,
-not from measured numbers. The first code in this repository after
-`gpu_tools` is a small load monitor node for exactly this: it samples
-`tegrastats` on the Jetson and `/proc` on the PC, publishes CPU, GPU and
-memory load as a topic, and needs no root and no CUDA, so it can run today.
+Done for the CPU side (the table above), with `load_sample` from
+`gpu_tools` and the `synthetic_camera` stand-in, both of which need no root
+and no CUDA. Still to do: the same measurement in MAXN_SUPER once step 0
+is done, and with the real D435. Keep `load_sample --samples 60` as the
+ruler for every step below, and compare against this table.
 
 ### 2. nvblox first, not visual SLAM
 

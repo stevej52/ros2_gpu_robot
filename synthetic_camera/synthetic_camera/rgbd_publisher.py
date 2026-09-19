@@ -26,7 +26,8 @@ so ``odometry.launch.py`` runs against this unmodified:
     /camera/camera/aligned_depth_to_color/image_raw 16UC1, millimetres
 
 Frames are rendered once at start-up into a ring buffer and then published as
-raw bytes, so the publisher costs almost nothing at run time. That matters:
+raw bytes, forward then backward so the motion never jumps, and the
+publisher costs almost nothing at run time. That matters:
 this node exists in order to measure another node, and a generator that burned
 a core of its own would corrupt the number it is meant to produce. Measure
 this node alone first, then add the node under test and subtract.
@@ -42,7 +43,7 @@ from rclpy.node import Node
 from rclpy.qos import QoSPresetProfiles
 from sensor_msgs.msg import CameraInfo, Image
 
-from synthetic_camera.scene import CameraModel, CorridorScene, build_ring
+from synthetic_camera.scene import CameraModel, CorridorScene, build_ring, playback_order
 
 COLOUR_TOPIC = '/camera/camera/color/image_raw'
 INFO_TOPIC = '/camera/camera/color/camera_info'
@@ -78,6 +79,7 @@ class SyntheticRgbdPublisher(Node):
         self.get_logger().info(
             f'rendering {frames} frames at {width}x{height}, this takes a moment')
         self._colours, self._depth = build_ring(scene, frames)
+        self._order = playback_order(len(self._colours))
         megabytes = (len(self._colours) * len(self._colours[0]) + len(self._depth)) / 1e6
         self.get_logger().info(f'ring buffer ready, {megabytes:.0f} MB resident')
 
@@ -106,7 +108,7 @@ class SyntheticRgbdPublisher(Node):
         return message
 
     def _camera_info(self, stamp) -> CameraInfo:
-        """CameraInfo matching the projection the scene was rendered with."""
+        """Return the CameraInfo matching the projection the scene was rendered with."""
         info = CameraInfo()
         info.header.stamp = stamp
         info.header.frame_id = self._frame_id
@@ -124,11 +126,11 @@ class SyntheticRgbdPublisher(Node):
         stamp = self.get_clock().now().to_msg()
         width = self._camera.width
         self._colour_pub.publish(
-            self._image(stamp, 'rgb8', width * 3, self._colours[self._index]))
+            self._image(stamp, 'rgb8', width * 3, self._colours[self._order[self._index]]))
         self._depth_pub.publish(
             self._image(stamp, '16UC1', width * 2, self._depth))
         self._info_pub.publish(self._camera_info(stamp))
-        self._index = (self._index + 1) % len(self._colours)
+        self._index = (self._index + 1) % len(self._order)
         self._published += 1
 
     def _report(self) -> None:

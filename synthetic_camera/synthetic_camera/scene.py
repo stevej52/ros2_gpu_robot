@@ -153,6 +153,21 @@ class CorridorScene:
         return self._texture[v.astype(np.intp), u.astype(np.intp)]
 
 
+def playback_order(frames: int) -> list[int]:
+    """
+    Return the frame indices to publish in a loop, forward then backward.
+
+    A ring that jumps from the last frame straight back to the first is a
+    teleport to the odometry: it loses tracking there, once per loop, and the
+    recovery shows up in its logs as if the camera had failed. Playing the
+    frames forward and then backward keeps position continuous; only the
+    velocity reverses, which an odometry node takes in its stride.
+    """
+    if frames <= 2:
+        return list(range(frames))
+    return list(range(frames)) + list(range(frames - 2, 0, -1))
+
+
 def build_ring(scene: CorridorScene, frames: int) -> tuple[list[bytes], bytes]:
     """
     Pre-render ``frames`` colour frames once, plus the single depth frame.

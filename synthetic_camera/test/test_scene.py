@@ -17,7 +17,8 @@
 import numpy as np
 import pytest
 
-from synthetic_camera.scene import CameraModel, CorridorScene, build_ring, make_texture
+from synthetic_camera.scene import (CameraModel, CorridorScene, build_ring, make_texture,
+                                    playback_order)
 
 
 def test_camera_matrices_have_the_shapes_ros_expects():
@@ -72,3 +73,11 @@ def test_ring_buffer_sizes_match_the_encodings():
     assert len(colours) == 4
     assert len(colours[0]) == 64 * 48 * 3, 'rgb8 is three bytes a pixel'
     assert len(depth) == 64 * 48 * 2, '16UC1 is two bytes a pixel'
+
+
+def test_playback_order_never_jumps():
+    order = playback_order(5)
+    assert order == [0, 1, 2, 3, 4, 3, 2, 1]
+    loop = order + order[:1]
+    assert all(abs(b - a) == 1 for a, b in zip(loop, loop[1:])), 'adjacent frames only'
+    assert playback_order(1) == [0] and playback_order(2) == [0, 1]
