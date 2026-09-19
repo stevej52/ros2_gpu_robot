@@ -27,26 +27,40 @@ The stand-in's own cost is listed so it can be subtracted.
 
 | Process | CPU (one core = 100%) | Memory |
 |---|---|---|
-| `rgbd_odometry`, 640x480 offered at 28 Hz | 90.5% | 190 MB |
+| `rgbd_odometry`, 640x480 offered at about 28 Hz | 78.7% | 190 MB |
 | `synthetic_rgbd` (the stand-in camera; subtract) | 9.0% | 114 MB |
 | `slam_toolbox` (measured separately, lidar only) | 7.4% | 98 MB |
 | `ekf_node` | 2.0% | 38 MB |
 | `robot_state_publisher`, `joint_state_publisher` | 1 to 2% each | |
 
-- **Throughput**: 28.2 Hz offered, 8.44 Hz of `/vo` out. About 70% of the
-  frames are dropped while one core is pinned.
+- **Throughput**: about 28 Hz offered, 10.8 Hz of `/vo` out. About 60% of
+  the frames are dropped while most of one core is busy.
 - **System**: 905 MB idle, 1272 MB with sensors, odometry and SLAM up, so
   about 6.2 GB free. That is the memory budget for steps 2 to 4.
 - **Power**: visual odometry alone adds 1.03 W (5.46 W to 6.49 W).
 - **GPU**: 0% throughout, as expected with no CUDA installed.
 
-What it settles: `rgbd_odometry` is about twelve times `slam_toolbox` and
+What it settles: `rgbd_odometry` is about ten times `slam_toolbox` and
 larger than everything else on the robot combined, so it stays the GPU
 target. It is not just expensive, it is not keeping up: on a chassis with no
 wheel encoders every dropped frame is a larger jump for the only odometry
 source. Leaving `slam_toolbox` on the CPU is confirmed. Two things remain to
 measure: the same run in MAXN_SUPER after step 0, and the real D435 in place
-of the stand-in.
+of the stand-in. Tracking robustness on real hardware is unmeasured; see
+the note below.
+
+How the stand-in was validated: its first version looped the pre-rendered
+frames straight from the last back to the first, a teleport to the
+odometry once a second. An A/B on the Jetson under identical conditions
+(60 s each) showed 146 tracking losses, 10.0 Hz and 95.5% of a core with
+that version against 1 loss, 10.8 Hz and 78.7% with the forward-and-back
+playback the package has now. The difference was the odometry re-detecting
+features from scratch after every jump, so the earlier, higher figure was
+an artifact of the stand-in, not a property of rtabmap. Method note from
+the same session: a run where the camera silently fails to publish looks
+like a perfect result (zero losses, 1% CPU). Before trusting a zero, check
+that the camera topics are flowing and that the odometry's CPU is
+non-trivial.
 
 Worth testing on real hardware: rtabmap warned about a 33 ms gap between
 colour and depth stamps. The stand-in stamps them identically, so that is
