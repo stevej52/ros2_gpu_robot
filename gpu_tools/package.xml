@@ -3,13 +3,14 @@
 <package format="3">
   <name>gpu_tools</name>
   <version>0.1.0</version>
-  <description>Report which GPU acceleration (CUDA, PyTorch, CuPy, TensorRT) a robot computer has</description>
+  <description>Report which GPU acceleration (CUDA, PyTorch, CuPy, TensorRT) a robot computer has, and how loaded it is</description>
   <maintainer email="stevej52@gmail.com">stevej52</maintainer>
   <license>Apache-2.0</license>
   <url type="repository">https://github.com/stevej52/ros2_gpu_robot</url>
   <url type="bugtracker">https://github.com/stevej52/ros2_gpu_robot/issues</url>
 
   <exec_depend>rclpy</exec_depend>
+  <exec_depend>diagnostic_msgs</exec_depend>
   <exec_depend>std_msgs</exec_depend>
 
   <test_depend>ament_copyright</test_depend>

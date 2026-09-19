@@ -28,7 +28,7 @@ setup(
     zip_safe=True,
     maintainer='stevej52',
     maintainer_email='stevej52@gmail.com',
-    description='Report which GPU acceleration a robot computer has',
+    description='Report which GPU acceleration a robot computer has, and how loaded it is',
     license='Apache-2.0',
     tests_require=['pytest'],
     extras_require={'test': ['pytest']},
@@ -36,6 +36,8 @@ setup(
         'console_scripts': [
             'gpu_info = gpu_tools.probe:main',
             'gpu_info_node = gpu_tools.gpu_info_node:main',
+            'load_sample = gpu_tools.load:main',
+            'load_monitor = gpu_tools.load_monitor_node:main',
         ],
     },
 )

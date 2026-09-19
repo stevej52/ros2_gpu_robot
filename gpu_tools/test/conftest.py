@@ -18,7 +18,7 @@ import importlib.util
 
 collect_ignore = []
 if importlib.util.find_spec('rclpy') is None:
-    collect_ignore.append('test_node.py')
+    collect_ignore += ['test_node.py', 'test_load_node.py']
 for linter in ('copyright', 'flake8', 'pep257'):
     if importlib.util.find_spec(f'ament_{linter}') is None:
         collect_ignore.append(f'test_{linter}.py')

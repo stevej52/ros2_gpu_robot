@@ -28,7 +28,7 @@ into a workspace and colcon finds them all:
 
 ```
 ros2_gpu_robot/
-  gpu_tools/        gpu_info: report what GPU acceleration this machine has
+  gpu_tools/        gpu_info: what GPU acceleration this machine has; load_monitor: how busy it is
   docs/gpu-stack.md how CUDA, PyTorch, CuPy, TensorRT and Isaac ROS fit together on JetPack 7
   docs/roadmap.md   what the GPU is for on this robot, in what order, and what stays on the CPU
 ```
@@ -77,6 +77,31 @@ that a tool started later still receives it:
 ```bash
 ros2 run gpu_tools gpu_info_node
 ros2 topic echo /gpu_info/report
+```
+
+## Measure before accelerating
+
+`load_sample` prints how busy the machine is: CPU, GPU, memory, and on a
+Jetson the temperatures and power, read from `tegrastats` there and from
+`/proc` on a PC (where the GPU column reads `-`). No ROS, CUDA or root
+needed. Run it next to the full robot launch to see what is actually loaded:
+
+```bash
+ros2 run gpu_tools load_sample --samples 30     # or: python3 -m gpu_tools.load --samples 30
+```
+
+```
+   1.0s  cpu 41%  gpu 0%  mem 3011/7620MB (40%)  swap 0/3810MB  gpu 45C  cpu 46C  5.0W
+   ...
+average of 30:  cpu 39%  gpu 0%  mem 3105/7620MB (41%)  swap 0/3810MB  gpu 47C  cpu 48C  5.1W
+```
+
+The same numbers go out on `/diagnostics` from `load_monitor`, once a
+second by default, with the level raised to WARN when memory passes 90%:
+
+```bash
+ros2 run gpu_tools load_monitor
+ros2 topic echo /diagnostics
 ```
 
 ## Adding GPU code
