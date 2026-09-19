@@ -36,34 +36,45 @@ server running. Nothing on the stick changes for this; it is the stock ISO.
 ### If it reboots into Windows instead
 
 The firmware kept Windows Boot Manager ahead of the new `ubuntu` entry (this
-PC did). Either fix it in the firmware setup (Del or F2 at power-on, Boot
-priority: `ubuntu` above `Windows Boot Manager`, save), or boot Ubuntu once
-from Windows (Settings, System, Recovery, Advanced startup, Restart now, Use a
-device, `ubuntu`) and make it permanent from Ubuntu before any reboot:
+PC did). On this AMI firmware the fix is in the Boot tab under "UEFI NVME
+Drive BBS Priorities": set Boot Option #1 to `ubuntu`, then F4 to save. Or
+boot Ubuntu once from Windows (Settings, System, Recovery, Advanced startup,
+Restart now, Use a device, `ubuntu`) and make it permanent from Ubuntu before
+any reboot:
 
     sudo efibootmgr                         # lists ubuntu and Windows Boot Manager with their numbers
-    sudo efibootmgr -o <ubuntu>,<windows>   # e.g. 0000,0001: ubuntu first
+    sudo efibootmgr -o <ubuntu>,<windows>   # e.g. 0002,0000: ubuntu first
     sudo efibootmgr -n <ubuntu>             # also force the very next boot into Ubuntu
 
 ## Afterwards, from another computer on the same network
 
-Wait until the machine answers, then log in with steve's account password:
+Wait until the machine answers, then log in with steve's account password.
+For a helper that has to work unattended, install its key first (asks for
+the password once): `ssh-copy-id steve@h2-host.local`.
 
     ssh steve@h2-host.local
 
-Do the boot order fix above first if the machine came up in Windows once;
-otherwise a reboot below strands it in Windows with nobody there.
+Check the boot order first if the machine came up in Windows once; otherwise
+a reboot below strands it in Windows with nobody there.
 
-Steve chose passwordless sudo for the setup, so an unattended helper can run
-the script below without a prompt. Apply it once (it asks for the password
-this one time), and remove the file when the setup is done:
+Everything below needs `sudo`, which asks for the password. Two ways to get
+through that with nobody at a keyboard:
 
-    echo '%sudo ALL=(ALL:ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/90-nopasswd-sudo
-    sudo chmod 0440 /etc/sudoers.d/90-nopasswd-sudo
+- **Password once, no standing rule (preferred).** A helper that has the
+  password can run the whole script detached in one SSH command; `sudo -S`
+  reads the password from standard input, and the script applies its
+  user-level steps to the account that called sudo:
+
+      printf '%s\n' "$PW" | ssh steve@h2-host.local 'sudo -S -p "" bash -c "nohup /home/steve/robot-environment/scripts/install_ros2_jazzy.sh --domain-id 7 --workspace > /home/steve/ros2-install.log 2>&1 &"'
+
+- **Passwordless sudo for the setup.** Apply once (asks for the password
+  this one time) and remove the file when the setup is done:
+
+      echo '%sudo ALL=(ALL:ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/90-nopasswd-sudo
+      sudo chmod 0440 /etc/sudoers.d/90-nopasswd-sudo
 
 Then bring the system up to date and run the same ROS 2 script as every other
-machine of the robot. Use the same `--domain-id` as the Jetson (the docs use
-7 as the example):
+machine of the robot. Use the same `--domain-id` as the Jetson (7):
 
     sudo apt update && sudo apt full-upgrade -y && sudo reboot
     # wait a minute, then log in again
@@ -77,7 +88,8 @@ Two dual-boot settings the script does not cover:
     sudo timedatectl set-timezone <zone>                     # e.g. America/Denver; list with: timedatectl list-timezones
 
 Check with `~/robot-environment/scripts/check_environment.sh`, then the
-two-machine test from robot-environment docs/environment.md section 4.
+two-machine test from robot-environment docs/environment.md section 4 (the
+Jetson has to be powered on for it).
 
 The runbook's alternative script is on the Windows partition; reach it with
 `sudo mount -t ntfs3 /dev/nvme0n1p3 /mnt/win` and find it under
