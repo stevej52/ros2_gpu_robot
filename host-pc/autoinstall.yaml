@@ -1,0 +1,50 @@
+#cloud-config
+# Ubuntu 24.04 Desktop on the robot host PC, dual boot next to Windows 11,
+# installed with nobody present after the first few clicks, then finished
+# remotely over SSH.
+#
+# Give this file's URL to the installer's "Automated installation" page:
+#   https://raw.githubusercontent.com/stevej52/ros2_gpu_robot/claude/hopeful-curie-0svtx5/host-pc/autoinstall.yaml
+#
+# Two installer pages stay interactive, so they are answered before leaving:
+#   - the disk page: choose "Install Ubuntu alongside Windows Boot Manager"
+#   - the account page: name, computer name, username, password
+# Everything else comes from this file: the SSH server, git and curl, no
+# third-party drivers or codecs, and an automatic reboot when done. SSH
+# password login is on (the OpenSSH default when no key is listed), so the
+# account created on the account page can log in from another computer.
+#
+# The stick's boot line needs "noprompt" added (press e on "Try or Install
+# Ubuntu", add noprompt at the end of the linux line, F10), so the reboot does
+# not wait for someone to remove the stick. See README.md next to this file.
+autoinstall:
+  version: 1
+
+  interactive-sections:
+    - storage
+    - identity
+
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+
+  # "Default selection" of apps, as in robot-environment docs/environment.md.
+  source:
+    id: ubuntu-desktop-minimal
+
+  # This PC has Intel graphics and in-kernel Wi-Fi and Ethernet; nothing here
+  # needs third-party drivers. Codecs can be added later over SSH.
+  drivers:
+    install: false
+  codecs:
+    install: false
+
+  # SSH, so a computer on the same network can finish the setup remotely.
+  ssh:
+    install-server: true
+
+  packages:
+    - git
+    - curl
+
+  shutdown: reboot
