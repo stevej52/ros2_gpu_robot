@@ -30,6 +30,7 @@ into a workspace and colcon finds them all:
 ros2_gpu_robot/
   gpu_tools/        gpu_info: report what GPU acceleration this machine has
   docs/gpu-stack.md how CUDA, PyTorch, CuPy, TensorRT and Isaac ROS fit together on JetPack 7
+  docs/roadmap.md   what the GPU is for on this robot, in what order, and what stays on the CPU
 ```
 
 ## Install and build
