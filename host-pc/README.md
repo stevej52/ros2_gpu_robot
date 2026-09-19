@@ -11,7 +11,7 @@ The installer fetches the file from this URL (the repository is public):
 
     https://raw.githubusercontent.com/stevej52/ros2_gpu_robot/claude/hopeful-curie-0svtx5/host-pc/autoinstall.yaml
 
-Install started 2026-09-19 with computer name **H2-Host** and user **steve**.
+Install done 2026-09-19 with computer name **H2-Host** and user **steve**.
 
 ## At the host PC
 
@@ -33,11 +33,26 @@ Install started 2026-09-19 with computer name **H2-Host** and user **steve**.
 The machine installs, reboots by itself, and boots Ubuntu with the SSH
 server running. Nothing on the stick changes for this; it is the stock ISO.
 
+### If it reboots into Windows instead
+
+The firmware kept Windows Boot Manager ahead of the new `ubuntu` entry (this
+PC did). Either fix it in the firmware setup (Del or F2 at power-on, Boot
+priority: `ubuntu` above `Windows Boot Manager`, save), or boot Ubuntu once
+from Windows (Settings, System, Recovery, Advanced startup, Restart now, Use a
+device, `ubuntu`) and make it permanent from Ubuntu before any reboot:
+
+    sudo efibootmgr                         # lists ubuntu and Windows Boot Manager with their numbers
+    sudo efibootmgr -o <ubuntu>,<windows>   # e.g. 0000,0001: ubuntu first
+    sudo efibootmgr -n <ubuntu>             # also force the very next boot into Ubuntu
+
 ## Afterwards, from another computer on the same network
 
 Wait until the machine answers, then log in with steve's account password:
 
     ssh steve@h2-host.local
+
+Do the boot order fix above first if the machine came up in Windows once;
+otherwise a reboot below strands it in Windows with nobody there.
 
 Steve chose passwordless sudo for the setup, so an unattended helper can run
 the script below without a prompt. Apply it once (it asks for the password
