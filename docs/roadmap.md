@@ -101,6 +101,42 @@ is still untested. Record of the session and the two launch-file fixes it
 took (`base_frame_id`, IR streams off): jetnano_robot
 `docs/bench-calibration-2026-09-21.md`.
 
+## Measured 2026-09-23: cuVSLAM on the GPU, and how far the CPU path goes
+
+Step 3 has been run on the bench (see [cuvslam_d435/README.md](../cuvslam_d435/README.md)
+for the recipe and the full tables). Isaac ROS 4.6 Visual SLAM in stereo mode on the
+D435's infrared pair, in NVIDIA's container, publishing to `/vo` with the EKF unchanged:
+
+| Odometry | `/vo` rate | spacing median / max | its CPU | camera driver CPU | GPU |
+|---|---|---|---|---|---|
+| rtabmap `rgbd_odometry`, defaults (F2M) | 10 Hz (6.7 in dim light) | 100-140 ms | 85-88 % | 39-54 % | 0 % |
+| rtabmap F2F (`Odom/Strategy 1`, `Vis/CorType 1`, `Odom/KeyFrameThr 0.6`) | 12 Hz | 70 ms | 85 % | 39 % | 0 % |
+| rtabmap F2F + `Vis/MaxFeatures 500` | 19 Hz | 42 ms / 173 | 79 % | 44 % | 0 % |
+| cuVSLAM stereo, 640x360x60 | 59 Hz | 16.7 / 35 ms | 23 % | 22 % | 5 % |
+| **cuVSLAM stereo, 640x360x90** | **89 Hz** | **11.1 / 23 ms** | 31 % | 29 % | 5 % |
+| cuVSLAM stereo, 848x480x60 | 56 Hz | 16.7 / 100 ms | 26 % | 27 % | 6 % |
+
+Static drift with cuVSLAM (robot parked, dawn light): 2-6 mm and 0.1-0.3 deg over 20 s in
+every profile; a 3-hour soak at 90 Hz held 90.0 Hz with no memory growth. The larger
+848x480 frames are slower, not faster. Tracking under motion is the next measurement.
+
+Three things the measurement corrected:
+
+- **The 10 Hz cap was never CPU speed.** `rgbd_odometry` has one worker thread and drops
+  every frame that arrives while it is busy, so its output is the camera rate divided by
+  how many frame periods one estimate takes. That is why MAXN_SUPER changed nothing, and
+  why frame-to-frame with fewer features (the last thing the CPU path can give) tops out
+  near 20 Hz.
+- **The infrared streams work on the stock kernel.** `enable_infra1/2` had been forced off
+  after depth stalled on 2026-09-22; that was a wedged camera (`initial_reset` clears it),
+  not a driver limitation. Y8 at 640x360x60, 848x480x60 and all four streams at once all
+  stream. No kernel patch is needed for step 3, and the container's RSUSB driver bypasses
+  the kernel driver anyway.
+- **Isaac ROS 4.6 is the last ROS 2 Jazzy release.** 5.0.0 (2026-09-21) moved to ROS 2
+  Lyrical and renamed the package `isaac_ros_cuvslam`. Pin `release-4.6`. The
+  `enable_imu_fusion` parameter named below no longer exists; the mode is `tracking_mode`
+  (0 stereo, 1 visual-inertial, 2 RGB-D).
+
 ## What runs today, ranked by CPU cost
 
 From `jetnano_bringup/launch/*.launch.py` and `jetnano_navigation/config/*`:
@@ -182,9 +218,14 @@ things make it a reconfiguration rather than a node swap:
   is emitter alternating with a splitter that sends projector-on frames to
   nvblox and projector-off frames to visual SLAM.
 - The D435 has no IMU; the BNO055 is a separate I2C device. Run cuVSLAM in
-  stereo-only tracking mode (`enable_imu_fusion: false`) and keep the
-  current ownership: it publishes to `/vo` with no transform, and the EKF
-  keeps owning `odom -> base_footprint`.
+  stereo tracking mode (`tracking_mode: 0`) and keep the current ownership:
+  it publishes to `/vo` with no transform, and the EKF keeps owning
+  `odom -> base_footprint`.
+
+**Done on the bench 2026-09-23** (numbers above): NVIDIA's container with its own
+RSUSB RealSense driver, cuVSLAM from the `release-4.6` apt channel, 89 Hz at 640x360x90.
+Left to do: tracking under motion and on rough ground, then a unit that starts the
+container with the robot. nvblox (step 2) can now follow in the same container.
 
 ### 4. DNN work last
 
