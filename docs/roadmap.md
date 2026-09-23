@@ -10,7 +10,7 @@ them again on 2026-09-19, and updated with the measured baseline of that day.
 
 | Machine | Found | Consequence |
 |---|---|---|
-| Jetson (Orin Nano Super, Jetson Linux 39.2.1) | `nvidia-jetpack` not installed: no CUDA, cuDNN or TensorRT; `gpu_info` says `gpu: no`; power mode 25 W (mode 1) | nothing below can start until step 0 is done |
+| Jetson (Orin Nano Super, Jetson Linux 39.2.1) | `nvidia-jetpack` not installed: no CUDA, cuDNN or TensorRT; `gpu_info` says `gpu: no`; power mode 25 W (mode 1) | nothing below can start until step 0 is done - **done 2026-09-21**: `nvidia-jetpack 7.2.1-b49` (CUDA 13.2, cuDNN 9.20, TensorRT 10.16), MAXN_SUPER, `gpu_info` says `gpu: yes` |
 | H2-Host (i9-14900HX, Intel graphics) | no GPU, as designed | every node here must launch on it with a CPU path or a clear refusal |
 
 `gpu_tools` builds and runs correctly on both (aarch64 and x86_64), and
@@ -69,6 +69,38 @@ aligned depth also carries the colour stamp, so `approx_sync: false` in
 `odometry.launch.py` may remove a class of bad pairings. Test before
 changing.
 
+## Measured again: MAXN_SUPER (2026-09-21) and the real D435 (2026-09-22)
+
+Both follow-ups from step 1 are done.
+
+**MAXN_SUPER, same stand-in run.** `/vo` went 10.8 to 9.9 Hz - unchanged
+within noise - while `rgbd_odometry` fell only from 78.7 % to 73.1 % of a
+core, with the load sitting on one core throughout. `rgbd_odometry` is
+effectively single-threaded, so more cores and more clock do not buy
+frames; whatever caps it near 10 Hz is not raw CPU speed. That is the
+strongest argument yet for replacing it (step 3) rather than tuning it.
+
+**The real D435, robot parked on a tile floor, MAXN_SUPER.**
+
+| | |
+|---|---|
+| `/vo` | ~10 Hz (9.9 over 30 s) |
+| tracking | 810 features, 508 matches, 357 inliers, 67 ms per estimate, never lost |
+| `rgbd_odometry` | 84-88 % of one core |
+| `realsense2_camera` | 39-54 % of a core: depth-to-colour alignment plus stamp sync |
+| bno055 / ekf / rplidar | 12-15 % / 5-6 % / 1 % |
+| system | 27-39 % of six cores, 6.4-7.0 W, GPU 0 %, 1.17 GB used |
+
+So the stand-in was honest: the real camera costs the same core and gives
+the same ~10 Hz. The alignment cost the roadmap guessed at (below) is real
+and visible - it is most of the RealSense node's share. On the stamp
+question above: the fix was on the driver side, `enable_sync` in
+`sensors.launch.py`, which cut rtabmap's "time difference is high" drops
+from ~100 to ~20 a minute (colour settles at 25 Hz); `approx_sync: false`
+is still untested. Record of the session and the two launch-file fixes it
+took (`base_frame_id`, IR streams off): jetnano_robot
+`docs/bench-calibration-2026-09-21.md`.
+
 ## What runs today, ranked by CPU cost
 
 From `jetnano_bringup/launch/*.launch.py` and `jetnano_navigation/config/*`:
@@ -115,13 +147,17 @@ Then `ros2 run gpu_tools gpu_info` must show the CUDA toolkit and TensorRT
 rows populated and `gpu: yes`. Any measurement taken in the 25 W mode
 understates the hardware, so set the mode before measuring anything.
 
+**Done 2026-09-21.** Note that `nvpmodel.service` fails at boot on this
+kit (exit 234) yet the persisted MAXN_SUPER mode is applied regardless -
+verified on a cold boot with `nvpmodel -q`.
+
 ### 1. Measure first
 
-Done for the CPU side (the table above), with `load_sample` from
-`gpu_tools` and the `synthetic_camera` stand-in, both of which need no root
-and no CUDA. Still to do: the same measurement in MAXN_SUPER once step 0
-is done, and with the real D435. Keep `load_sample --samples 60` as the
-ruler for every step below, and compare against this table.
+Done: the CPU side with the stand-in (the first table), again in
+MAXN_SUPER, and with the real D435 (the second table). Keep `load_sample
+--samples 60` as the ruler for every step below, and compare against
+those tables. Still unmeasured: tracking with the robot actually moving
+over rough ground, which only a drive will show.
 
 ### 2. nvblox first, not visual SLAM
 
