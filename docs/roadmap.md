@@ -199,6 +199,17 @@ loss, ~12 cm and 3.8 deg of closed-loop error over 1.7 m, inliers down to
 
 ### 2. nvblox first, not visual SLAM
 
+**Done on the bench 2026-09-23**, after step 3 rather than before it (the odometry
+was the failing part; the map is additive). nvblox runs in the same container as
+cuVSLAM from the same D435 with the projector alternating between frames, and
+publishes a 2D occupancy grid of everything 0.10-0.35 m above the floor that Nav2's
+local costmap reads as a plain static layer: 931 lethal cells in the first bench
+costmap, nearest obstacle straight ahead at 1.63 m, matching the camera. Cost: the
+odometry drops from 89 to ~40 Hz, the container takes ~60 % of a core, GPU 6-9 %,
+system RAM 2.6-3.0 GB. The robot boots with it (`jetnano-robot.service`). Recipe and
+numbers: [cuvslam_d435/README.md](../cuvslam_d435/README.md).
+
+
 [Isaac ROS nvblox](https://nvidia-isaac-ros.github.io/repositories_and_packages/isaac_ros_nvblox/index.html)
 reconstructs the scene in 3D on the GPU from D435 depth and the robot's pose,
 and publishes a 2D costmap for Nav2. It is additive: a new costmap layer,
