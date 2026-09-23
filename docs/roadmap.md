@@ -156,8 +156,10 @@ verified on a cold boot with `nvpmodel -q`.
 Done: the CPU side with the stand-in (the first table), again in
 MAXN_SUPER, and with the real D435 (the second table). Keep `load_sample
 --samples 60` as the ruler for every step below, and compare against
-those tables. Still unmeasured: tracking with the robot actually moving
-over rough ground, which only a drive will show.
+those tables. Tracking under motion, first sample (robot slid a metre and
+back by hand on a plain tile floor): tracked throughout, one single-frame
+loss, ~12 cm and 3.8 deg of closed-loop error over 1.7 m, inliers down to
+90-200 from ~340 at rest. Rough ground under power is still unmeasured.
 
 ### 2. nvblox first, not visual SLAM
 
