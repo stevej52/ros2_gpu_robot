@@ -125,11 +125,44 @@ and CUDA then fails with "no CUDA-capable device".
 - The host camera launch and the container's driver are different librealsense versions
   (2.58.4 V4L2 vs 2.56.3 RSUSB); they never run at the same time.
 
+## nvblox: what the camera sees, in 3D, for Nav2 (roadmap step 2)
+
+`cuvslam_nvblox_d435.launch.py` runs the same odometry plus NVIDIA's nvblox 3D
+reconstruction from the same camera. The two want opposite things from the projector
+(cuVSLAM: off, or it tracks the dot pattern; nvblox: on, for depth on plain surfaces), so
+the camera flashes it on alternate frames (`depth_module.emitter_on_off`) and NVIDIA's
+`realsense_splitter` routes each frame by its metadata - projector-off pairs to cuVSLAM,
+projector-on depth to nvblox. Each consumer gets half the frame rate. Measured
+2026-09-23 with the whole robot stack up:
+
+| | value |
+|---|---|
+| `/vo` | 41-43 Hz (89 without nvblox) |
+| nvblox occupancy grid / ESDF | 9.5 Hz, 5 cm cells, odom frame |
+| CPU: container (splitter + cuVSLAM + nvblox) / camera driver | 85 % / 45 % of a core |
+| GPU | 9 % |
+| RAM, whole system | 2.8 GB (container RSS 1.6 GB) |
+
+The 2D slice nvblox publishes covers 0.10-0.35 m above the floor (odom z = 0 is where
+`base_footprint` started, on the floor): any lower and the floor itself is marked as an
+obstacle (2286 occupied cells against 826 free before the change; 762 against 2163
+after). nvblox 4.6 publishes the slice as a plain `nav_msgs/OccupancyGrid`
+(`/nvblox_node/static_occupancy_grid`), so Nav2's own static layer reads it and the
+host needs no NVIDIA package. Wiring on the robot side: `robot.launch.py nvblox:=true`
+and `navigation.launch.py nvblox:=true` (jetnano_robot).
+
+Install notes: `ros-jazzy-nvblox-ros` + `ros-jazzy-nvblox-msgs` only - the
+`ros-jazzy-isaac-ros-nvblox` meta-package drags the people-segmentation stack (Triton,
+gigabytes) into the container. NVIDIA's `nvblox_base.yaml` is copied into the workspace
+for the same reason. The splitter is not shipped as a deb: clone `isaac_ros_nvblox`
+(release-4.6) into `$ISAAC_ROS_WS/src`, delete `nvblox_examples/realsense_splitter/COLCON_IGNORE`
+and `colcon build --packages-select realsense_splitter` inside the container (80 s); the
+wrapper sources `install/setup.bash` when nvblox is on.
+
 ## Not done yet
 
-- Tracking under motion, and on the rocks. cuVSLAM's `enable_ground_constraint_in_odometry`
-  is off; try it only on flat floors.
-- nvblox (roadmap step 2) can now follow: same container, `ros-jazzy-isaac-ros-nvblox`
-  4.6.0 resolves from the same repo, depth + colour with the projector on, pose from the
-  EKF's TF.
-- A systemd unit or launch wrapper so the container and its launch come up with the robot.
+- Tracking under motion on the rocks; cuVSLAM's `enable_ground_constraint_in_odometry`
+  is off - try it only on flat floors.
+- nvblox is tuned on a static bench: voxel size, decay and the slice heights want a
+  look once the robot drives (a 10 cm step should appear; a slope should not).
+- nvblox colour (`use_color`) is off; turn it on only if someone wants a coloured mesh.
