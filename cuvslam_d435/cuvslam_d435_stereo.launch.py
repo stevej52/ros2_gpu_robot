@@ -10,10 +10,16 @@ odom -> base_footprint.
     ros2 launch ... infra_profile:=848,480,60 base_frame:=camera_link
 
 The host's realsense2_camera node must be stopped first: the camera can have one owner.
+
+The colour stream is on as well, for people rather than nodes: JPEG-compressed on
+/camera/color/image_raw/compressed for RViz over Wi-Fi, and served to any browser on
+port 8080 by a web_video_server in the same container. Both are idle until someone
+looks. See cuvslam_nvblox_d435.launch.py for why they live in the container.
 """
 
 import launch
 from launch.actions import DeclareLaunchArgument, Shutdown
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
@@ -26,6 +32,10 @@ def generate_launch_description():
     jitter_ms = LaunchConfiguration('image_jitter_threshold_ms')
     ground = LaunchConfiguration('ground_constraint')
     emitter = LaunchConfiguration('emitter')
+    color = LaunchConfiguration('color')
+    color_profile = LaunchConfiguration('color_profile')
+    web_video = LaunchConfiguration('web_video')
+    web_video_port = LaunchConfiguration('web_video_port')
 
     realsense_camera_node = Node(
         name='camera',
@@ -39,7 +49,7 @@ def generate_launch_description():
         parameters=[{
             'enable_infra1': True,
             'enable_infra2': True,
-            'enable_color': False,
+            'enable_color': ParameterValue(color, value_type=bool),
             'enable_depth': False,
             'enable_gyro': False,
             'enable_accel': False,
@@ -48,6 +58,12 @@ def generate_launch_description():
             'depth_module.emitter_enabled': ParameterValue(emitter, value_type=int),
             'depth_module.infra_profile': infra_profile,
             'depth_module.profile': infra_profile,
+            'rgb_camera.color_profile': color_profile,
+            'rgb_camera.profile': color_profile,
+            # Reliable on purpose: RViz's Image display and web_video_server
+            # subscribe reliably by default and would not match best effort.
+            'color_qos': 'DEFAULT',
+            'color_info_qos': 'DEFAULT',
             'initial_reset': True,
         }],
     )
@@ -95,6 +111,25 @@ def generate_launch_description():
         on_exit=[Shutdown(reason='visual slam container exited')],
     )
 
+    # The browser feed: the camera's own JPEG frames passed through as MJPEG
+    # (encodes nothing, subscribes only while a browser is connected).
+    #     http://<robot>:8080/stream?topic=/camera/color/image_raw
+    web_video_node = Node(
+        package='web_video_server',
+        executable='web_video_server',
+        name='web_video_server',
+        output='screen',
+        condition=IfCondition(web_video),
+        respawn=True,
+        respawn_delay=5.0,
+        parameters=[{
+            'port': ParameterValue(web_video_port, value_type=int),
+            'address': '0.0.0.0',
+            'default_stream_type': 'ros_compressed',
+            'verbose': False,
+        }],
+    )
+
     return launch.LaunchDescription([
         DeclareLaunchArgument('infra_profile', default_value='640,360,60',
                               description="IR stream profile 'W,H,FPS'; the D435 offers 640x360 and 848x480 at up to 90"),
@@ -106,6 +141,14 @@ def generate_launch_description():
                               description='IR projector: 0 off (real tracking), 1 on (dot pattern - static-bench load test only)'),
         DeclareLaunchArgument('ground_constraint', default_value='false',
                               description='constrain odometry to a horizontal plane (not for rocks)'),
+        DeclareLaunchArgument('color', default_value='true',
+                              description='stream the colour camera too, for RViz and the browser feed; nothing on the robot uses it'),
+        DeclareLaunchArgument('color_profile', default_value='640,480,30',
+                              description="colour stream 'W,H,FPS'"),
+        DeclareLaunchArgument('web_video', default_value='true',
+                              description='serve the compressed colour stream over HTTP (web_video_server)'),
+        DeclareLaunchArgument('web_video_port', default_value='8080'),
         container,
         realsense_camera_node,
+        web_video_node,
     ])

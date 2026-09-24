@@ -159,6 +159,37 @@ for the same reason. The splitter is not shipped as a deb: clone `isaac_ros_nvbl
 and `colcon build --packages-select realsense_splitter` inside the container (80 s); the
 wrapper sources `install/setup.bash` when nvblox is on.
 
+## Watching the camera (video feed)
+
+Both launch files also stream the colour sensor (`color:=true`, 640x480 at 30 Hz), for
+people rather than nodes. Nothing on the robot subscribes to it, and image_transport only
+encodes for subscribers, so it costs nothing until someone looks. Two ways to look:
+
+- **Any browser, no ROS**: `http://192.168.1.7:8080/stream?topic=/camera/color/image_raw`
+  (the root page lists the topics; `/snapshot?topic=...` gives one JPEG). Served by a
+  `web_video_server` in the container with `default_stream_type: ros_compressed`, which
+  passes the camera's own JPEG frames through as MJPEG and encodes nothing. HTTP is TCP,
+  so a lossy Wi-Fi link costs frames rather than a torn picture; this is the feed for a
+  phone while walking behind the robot.
+- **RViz on the host PC**: the Image display on `/camera/color/image_raw/compressed`
+  (`jetnano_bringup rviz.launch.py view:=drive` has it set up). Measured 2026-09-23 from
+  the host over Wi-Fi: 2.3 MB/s (18 Mbit/s) at 30 Hz, 71 KB a frame. The raw topic would
+  be 27.6 MB/s against an uplink measured at 36 Mbit/s - do not subscribe to it from
+  another machine.
+
+The colour stream is published *reliable* (`color_qos: DEFAULT`), unlike depth and IR:
+RViz's Image display and web_video_server subscribe reliably by default, and a
+best-effort publisher never matches a reliable subscriber. `color:=false` and
+`web_video:=false` turn the two off.
+
+Why this lives in the container: the debs it needs (`ros-jazzy-compressed-image-transport`,
+`-compressed-depth-image-transport`, `ros-jazzy-web-video-server`) cannot go on the
+Jetson host - apt would replace JetPack's OpenCV 4.8 with Ubuntu's 4.6 and remove
+`nvidia-jetpack` to install them (checked with `apt-get install -s`, 2026-09-23). Inside
+NVIDIA's image they install cleanly; `install_isaac_ros_46.sh --container` adds them and
+re-commits `isaac_vo:4.6`. It follows that the feed exists with `vo:=cuvslam` only; the
+CPU fallback (`vo:=rtabmap`, host camera) publishes raw images and nothing else.
+
 ## Not done yet
 
 - Tracking under motion on the rocks; cuVSLAM's `enable_ground_constraint_in_odometry`
