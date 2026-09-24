@@ -220,8 +220,9 @@ def generate_launch_description():
         DeclareLaunchArgument('profile', default_value='640,360,90',
                               description="depth-module profile 'W,H,FPS' shared by IR and depth; each consumer gets half the FPS"),
         DeclareLaunchArgument('base_frame', default_value='base_link'),
-        DeclareLaunchArgument('image_jitter_threshold_ms', default_value='50.0',
-                              description='cuVSLAM: max gap between stereo pairs; with the emitter alternating, pairs arrive at half the profile rate'),
+        DeclareLaunchArgument('image_jitter_threshold_ms', default_value='100.0',
+                              description='cuVSLAM logs a warning for a gap between stereo pairs above this (the pair is still used); '
+                                          'pairs arrive every 22 ms nominal with the emitter alternating, and the camera drops some'),
         DeclareLaunchArgument('ground_constraint', default_value='false'),
         DeclareLaunchArgument('voxel_size', default_value='0.05'),
         DeclareLaunchArgument('slice_min_height', default_value='0.10',

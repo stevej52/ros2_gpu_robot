@@ -135,8 +135,9 @@ def generate_launch_description():
                               description="IR stream profile 'W,H,FPS'; the D435 offers 640x360 and 848x480 at up to 90"),
         DeclareLaunchArgument('base_frame', default_value='base_link',
                               description='frame the odometry is expressed for; needs TF base_frame -> camera optical frames'),
-        DeclareLaunchArgument('image_jitter_threshold_ms', default_value='19.0',
-                              description='max gap between consecutive stereo pairs; 19 for 60 fps, 34 for 30 fps'),
+        DeclareLaunchArgument('image_jitter_threshold_ms', default_value='30.0',
+                              description='cuVSLAM logs a warning for a gap between stereo pairs above this (the pair is still used); '
+                                          '30 flags a real stall at 60 or 90 fps without filling the log on every dropped frame'),
         DeclareLaunchArgument('emitter', default_value='0',
                               description='IR projector: 0 off (real tracking), 1 on (dot pattern - static-bench load test only)'),
         DeclareLaunchArgument('ground_constraint', default_value='false',
