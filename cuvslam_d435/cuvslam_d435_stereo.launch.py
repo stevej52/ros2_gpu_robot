@@ -13,7 +13,7 @@ The host's realsense2_camera node must be stopped first: the camera can have one
 """
 
 import launch
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, Shutdown
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
@@ -33,6 +33,9 @@ def generate_launch_description():
         package='realsense2_camera',
         executable='realsense2_camera_node',
         output='screen',
+        # If either process dies, take the whole launch down: the wrapper on the
+        # host then exits and its launch respawns everything cleanly.
+        on_exit=[Shutdown(reason='realsense2_camera_node exited')],
         parameters=[{
             'enable_infra1': True,
             'enable_infra2': True,
@@ -89,6 +92,7 @@ def generate_launch_description():
         executable='component_container',
         composable_node_descriptions=[visual_slam_node],
         output='screen',
+        on_exit=[Shutdown(reason='visual slam container exited')],
     )
 
     return launch.LaunchDescription([
