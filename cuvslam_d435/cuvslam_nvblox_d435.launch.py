@@ -55,6 +55,7 @@ def generate_launch_description():
     slice_max = LaunchConfiguration('slice_max_height')
     color = LaunchConfiguration('color')
     color_profile = LaunchConfiguration('color_profile')
+    color_mesh = LaunchConfiguration('color_mesh')
     web_video = LaunchConfiguration('web_video')
     web_video_port = LaunchConfiguration('web_video_port')
 
@@ -154,8 +155,11 @@ def generate_launch_description():
     # NVIDIA's base parameters, then what is specific to this robot: the map is
     # built in odom from TF (odom -> base_footprint -> base_link -> camera), the
     # 2D slice for Nav2 spans from just below the floor (odom z = 0 is the floor,
-    # where base_footprint started) to the top of the chassis, and the colour
-    # stream is not used for the map (it exists for the video feed only).
+    # where base_footprint started) to the top of the chassis. With
+    # color_mesh:=true (2026-09-27, Steve: "what the camera actually saw") the
+    # colour stream is painted onto the 3D map too - /nvblox_node/color_layer_marker
+    # in stock RViz, /nvblox_node/mesh with NVIDIA's plugin, and save_ply exports it;
+    # otherwise the colour stream is only for the video feed.
     nvblox_node = ComposableNode(
         name='nvblox_node',
         package='nvblox_ros',
@@ -163,7 +167,9 @@ def generate_launch_description():
         parameters=[NVBLOX_BASE, {
             'num_cameras': 1,
             'use_depth': True,
-            'use_color': False,
+            'use_color': ParameterValue(color_mesh, value_type=bool),
+            # the layer streamer sends changed blocks only, within this budget (Wi-Fi to RViz)
+            'layer_streamer_bandwidth_limit_mbps': 8.0,
             'use_lidar': False,
             'global_frame': 'odom',
             'pose_frame': base_frame,
@@ -182,6 +188,8 @@ def generate_launch_description():
         remappings=[
             ('camera_0/depth/image', '/camera/realsense_splitter_node/output/depth'),
             ('camera_0/depth/camera_info', '/camera/depth/camera_info'),
+            ('camera_0/color/image', '/camera/color/image_raw'),
+            ('camera_0/color/camera_info', '/camera/color/camera_info'),
         ],
     )
 
@@ -231,6 +239,8 @@ def generate_launch_description():
                               description='nvblox 2D slice: highest obstacle height, odom frame (chassis top)'),
         DeclareLaunchArgument('color', default_value='true',
                               description='stream the colour camera too, for RViz and the browser feed; nothing on the robot uses it'),
+        DeclareLaunchArgument('color_mesh', default_value='false',
+                              description='paint the colour camera onto the 3D map (needs color:=true)'),
         DeclareLaunchArgument('color_profile', default_value='640,480,30',
                               description="colour stream 'W,H,FPS'"),
         DeclareLaunchArgument('web_video', default_value='true',
