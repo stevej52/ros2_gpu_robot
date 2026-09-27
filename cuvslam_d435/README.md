@@ -72,7 +72,7 @@ The container is started detached with the same flags the CLI would use, minus `
 (with it, a `pkill` inside the container reaches the host's launches):
 
 ```bash
-docker run -d --privileged --network host --ipc host --gpus all \
+docker run -d --privileged --network host --ipc host --runtime nvidia \
   -e ROS_DOMAIN_ID=7 -e ISAAC_ROS_WS=/workspaces/isaac_ros-dev \
   -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=all \
   -e HOST_USER_UID=$(id -u) -e HOST_USER_GID=$(id -g) -e USER=$USER \
@@ -80,6 +80,11 @@ docker run -d --privileged --network host --ipc host --gpus all \
   --workdir /workspaces/isaac_ros-dev --entrypoint /usr/local/bin/scripts/workspace-entrypoint.sh \
   --name isaac_vo isaac_vo:4.6 sleep infinity
 ```
+
+`--runtime nvidia`, not `--gpus all`: with the toolkit in its Jetson ("csv") mode a
+`--gpus all` container stopped starting on 2026-09-24 ("invoking the NVIDIA Container
+Runtime Hook directly ... is not supported"), and a container created that way never
+starts again until it is recreated. `install_isaac_ros_46.sh` does it this way.
 
 The camera can have one owner: stop the host's camera launch first
 (`sensors.launch.py use_lidar:=false use_imu:=false` runs it on its own, PID in
@@ -119,7 +124,13 @@ and CUDA then fails with "no CUDA-capable device".
 
 ## Known deviations from NVIDIA's pins
 
-- D435 firmware 5.12.10 on this camera; Isaac ROS pins 5.16.0.1. Not updated.
+- D435 firmware **5.12.10.0**; Isaac ROS pins 5.16.0.1. 5.16.0.1 was tried on 2026-09-26
+  and rolled back the next day: its metadata says the projector alternates, but every frame
+  carries the dot pattern, so cuVSLAM sees a scene that moves with the camera and reports
+  her standing still while she drives. Check any other firmware first: on
+  `/camera/infra1/image_rect_raw`, frames whose `frame_emitter_mode` (in
+  `/camera/infra1/metadata`) is 0 must be smooth - a neighbour-pixel difference of ~2
+  against ~12 with the dots - and so must the splitter's output to cuVSLAM.
 - The D435 (no IMU) is not in NVIDIA's D455/D435i support table; stereo mode is what the
   tutorial itself prescribes for it, and it works.
 - The host camera launch and the container's driver are different librealsense versions

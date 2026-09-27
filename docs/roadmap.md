@@ -6,6 +6,18 @@ files and configuration in
 [jetnano_robot](https://github.com/stevej52/jetnano_robot), checked against
 them again on 2026-09-19, and updated with the measured baseline of that day.
 
+## Where it stands, 2026-09-27
+
+Steps 0, 2 and 3 below are done and run on the robot at every boot:
+cuVSLAM stereo odometry (~40 Hz with nvblox, 89 Hz alone) and nvblox's
+occupancy grid, which Nav2 and the collision guard both use - so "the gap
+worth noticing" further down is closed, and `rgbd_odometry` is the CPU
+fallback, not what runs. Tracking under motion is proven (a hand slide, and
+2 m driven on the floor on 2026-09-27); rough ground is still unmeasured.
+The D435 stays on firmware 5.12.10.0 (see `cuvslam_d435/README.md`). Step 4
+(DNN work) has not started. The sections below are the plan and the
+measurements as they were made.
+
 ## Baseline, 2026-09-19
 
 | Machine | Found | Consequence |
