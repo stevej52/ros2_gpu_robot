@@ -53,6 +53,7 @@ def generate_launch_description():
     voxel = LaunchConfiguration('voxel_size')
     slice_min = LaunchConfiguration('slice_min_height')
     slice_max = LaunchConfiguration('slice_max_height')
+    map_rate = LaunchConfiguration('map_rate_hz')
     color = LaunchConfiguration('color')
     color_profile = LaunchConfiguration('color_profile')
     color_mesh = LaunchConfiguration('color_mesh')
@@ -206,6 +207,16 @@ def generate_launch_description():
             'static_mapper.esdf_slice_height': 0.0,
             'static_mapper.esdf_slice_min_height': ParameterValue(slice_min, value_type=float),
             'static_mapper.esdf_slice_max_height': ParameterValue(slice_max, value_type=float),
+            # how often the 3D map is turned into the 2D slice, occupancy grid and ESDF cloud
+            # (base file: 10)
+            'update_esdf_rate_hz': ParameterValue(map_rate, value_type=float),
+            # nvblox skips a depth frame that comes sooner than 1/rate after the last one it
+            # used: the base file's 40 kept only every other 22 ms frame (22.5 of 45 a second,
+            # counted in its timing table 2026-09-27). Above the splitter's 45, all of them.
+            'integrate_depth_rate_hz': 100.0,
+            # every rate above is checked once per tick; at the base 10 ms, 45 a second
+            # could only come out as ~33
+            'tick_period_ms': 5,
         }],
         remappings=[
             ('camera_0/depth/image', '/camera/realsense_splitter_node/output/depth'),
@@ -272,6 +283,9 @@ def generate_launch_description():
                               description='nvblox 2D slice: lowest obstacle height, odom frame (floor = 0; any lower and the floor itself is marked)'),
         DeclareLaunchArgument('slice_max_height', default_value='0.35',
                               description='nvblox 2D slice: highest obstacle height, odom frame (chassis top)'),
+        DeclareLaunchArgument('map_rate_hz', default_value='45.0',
+                              description='nvblox 2D map updates per second (grid, obstacle points for the collision guard); '
+                                          'checked on a 5 ms tick, so the real rate lands a little under'),
         DeclareLaunchArgument('color', default_value='true',
                               description='stream the colour camera too, for RViz and the browser feed; nothing on the robot uses it'),
         DeclareLaunchArgument('color_mesh', default_value='false',
