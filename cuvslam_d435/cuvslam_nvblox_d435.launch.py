@@ -108,10 +108,10 @@ def generate_launch_description():
             # The colour stream's JPEG copy (/camera/color/image_raw/compressed) is for
             # people only: csi_cameras relays it to the pages and drive_log saves it.
             # Nothing on the robot reads it; nvblox takes the raw colour and the depth,
-            # cuVSLAM the raw infrared. At image_transport's default quality 95 a
-            # 640x480 frame was 72-82 KB, 20 Mbit/s to the iPad at 30 fps; 85 halves
-            # that (2026-09-28, Steve).
-            'camera.color.image_raw.compressed.jpeg_quality': 85,
+            # cuVSLAM the raw infrared. 95 (image_transport's default) on purpose: 85
+            # was tried on 2026-09-28 and Steve saw the iPad's main camera go fuzzy, for
+            # 11 Mbit/s of Wi-Fi (20 -> 9) and no CPU or power to speak of.
+            'camera.color.image_raw.compressed.jpeg_quality': 95,
             'initial_reset': True,
     }
     realsense_camera_node = Node(
