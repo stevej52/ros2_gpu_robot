@@ -17,6 +17,10 @@ REP-103 / URDF: positive pitch points the camera DOWN.
 Works with either camera driver: the host's aligned depth or the container's
 depth (the splitter's projector-on frames are the cleanest:
 /camera/realsense_splitter_node/output/depth). 16UC1 millimetres or 32FC1 metres.
+
+--upside-down for a camera mounted upside down (Rosie since 2026-09-27: the USB
+port on the Jetson's side, no extension): the floor is then in the top of the
+image, and the roll it prints is near 180 deg - the value camera_rpy wants.
 """
 
 import argparse
@@ -92,6 +96,8 @@ def main():
     parser.add_argument('--seconds', type=float, default=4.0)
     parser.add_argument('--max-range', type=float, default=3.0)
     parser.add_argument('--wheel-radius', type=float, default=0.065)
+    parser.add_argument('--upside-down', action='store_true',
+                        help='the camera is mounted upside down (floor in the top of the image)')
     args = parser.parse_args()
 
     rclpy.init()
@@ -116,8 +122,12 @@ def main():
     y = (v[valid] - cy) * z / fy
     points = np.column_stack([x, y, z]).astype(np.float64)
     # Only the lower half of the image, and only points below the lens: the
-    # floor is there, walls and furniture mostly are not.
-    keep = (v[valid] > h * 0.4) & (y > 0.05)
+    # floor is there, walls and furniture mostly are not. Upside down, "below
+    # the lens" is the top of the image and -y in the optical frame.
+    if args.upside_down:
+        keep = (v[valid] < h * 0.6) & (y < -0.05)
+    else:
+        keep = (v[valid] > h * 0.4) & (y > 0.05)
     points = points[keep]
     if len(points) < 500:
         print(f'not enough floor points ({len(points)}); is there clear floor in front of the camera?')
@@ -128,17 +138,20 @@ def main():
     inliers = ransac_floor(points)
     normal, d = fit_plane(points[inliers])
     residual = np.abs(points[inliers] @ normal + d)
-    # Orient the normal to point UP (toward the camera, which is above the floor): in the
-    # optical frame "up" is -y.
-    if normal[1] > 0:
+    # Orient the normal to point UP, i.e. toward the camera, which is above the
+    # floor: the lens is at the origin, whose signed distance to the plane is d,
+    # so d > 0 means the normal already points at it. (This works either way up.)
+    if d < 0:
         normal, d = -normal, -d
     height = abs(d)   # the lens is at the origin: its distance to the plane
 
     # Optical -> camera_link (REP-103: x forward, y left, z up):
     # x_link = z_opt, y_link = -x_opt, z_link = -y_opt.
     up = np.array([normal[2], -normal[0], -normal[1]])
-    pitch = math.atan2(-up[0], up[2])        # positive = camera pointing down
-    roll = math.atan2(up[1], up[2])          # positive = left side up
+    # URDF rpy (r, p, 0) is R = Ry(p) Rx(r), so the floor's up seen from the camera
+    # is (-sin p, sin r cos p, cos r cos p): exact at any roll, upside down included.
+    pitch = math.atan2(-up[0], math.hypot(up[1], up[2]))   # positive = camera pointing down
+    roll = math.atan2(up[1], up[2])                         # positive = left side up; ~180 upside down
 
     print(f'frames: {len(node.frames)}  floor points: {len(points)}  inliers: {int(inliers.sum())}  '
           f'residual: mean {residual.mean()*1000:.1f} mm, max {residual.max()*1000:.1f} mm')
