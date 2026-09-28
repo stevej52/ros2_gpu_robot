@@ -1,8 +1,27 @@
 <?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  Fast DDS profile for every ROS process in the isaac_vo container.
+
+  UDP only: the container's nodes run as root, and Fast DDS shared memory owned by
+  root is unreadable by the host user (publisher visible, no data).
+
+  non_blocking_send (2026-09-27): a send that would block because the socket buffer is
+  full is dropped instead. Without it, a slow Wi-Fi uplink to any remote viewer of the
+  camera's streams (RViz on H2-Host, reliable) made the RealSense driver wait inside its
+  frame handling; it stopped reading the camera over USB, "uvc streamer watchdog
+  triggered", and the camera odometry stalled - the dropouts in the far corner of the
+  house. Reproduced on Rosie by limiting her outgoing Wi-Fi to 4 Mbit/s with a reliable
+  viewer on H2-Host: stall within 5 s. Reliable subscribers still get their data by
+  retransmission; only a viewer that cannot keep up loses frames.
+-->
 <dds xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
   <profiles>
     <transport_descriptors>
-      <transport_descriptor><transport_id>udp_only</transport_id><type>UDPv4</type></transport_descriptor>
+      <transport_descriptor>
+        <transport_id>udp_only</transport_id>
+        <type>UDPv4</type>
+        <non_blocking_send>true</non_blocking_send>
+      </transport_descriptor>
     </transport_descriptors>
     <participant profile_name="udp_only_participant" is_default_profile="true">
       <rtps><userTransports><transport_id>udp_only</transport_id></userTransports><useBuiltinTransports>false</useBuiltinTransports></rtps>

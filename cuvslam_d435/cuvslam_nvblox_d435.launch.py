@@ -90,11 +90,16 @@ def generate_launch_description():
             'depth_qos': 'SENSOR_DATA',
             'depth_info_qos': 'SENSOR_DATA',
             'infra_qos': 'SENSOR_DATA',
-            # Colour stays reliable, unlike the streams above: RViz's Image
-            # display and web_video_server subscribe reliably by default, and a
-            # best-effort publisher never matches a reliable subscriber.
-            'color_qos': 'DEFAULT',
-            'color_info_qos': 'DEFAULT',
+            # Colour is best effort too, since 2026-09-27. Reliable, a remote viewer on
+            # slow Wi-Fi (RViz on H2-Host, far corner of the house) made the driver
+            # re-send to it inside its frame handling until it stopped reading the
+            # camera: "uvc streamer watchdog triggered", camera odometry stalled.
+            # Reproduced by limiting Rosie's uplink to 4 Mbit/s with a reliable
+            # viewer. Everything on the robot already reads colour best effort
+            # (nvblox, csi_cameras); RViz's Image display needs Reliability Policy:
+            # Best Effort to match.
+            'color_qos': 'SENSOR_DATA',
+            'color_info_qos': 'SENSOR_DATA',
             'initial_reset': True,
     }
     realsense_camera_node = Node(
