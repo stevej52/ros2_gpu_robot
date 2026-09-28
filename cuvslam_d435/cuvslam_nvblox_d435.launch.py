@@ -33,7 +33,7 @@ import os
 
 import launch
 from launch.actions import DeclareLaunchArgument, Shutdown
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
@@ -62,16 +62,15 @@ def generate_launch_description():
     # The camera: IR pair + depth from the depth module, projector flashing,
     # plus the colour sensor for the video feed. No alignment, no sync: the
     # splitter pairs frames by their own metadata, and nothing pairs colour.
-    realsense_camera_node = Node(
-        name='camera',
-        namespace='',
-        package='realsense2_camera',
-        executable='realsense2_camera_node',
-        output='screen',
-        # If either process dies, take the whole launch down: the wrapper on the
-        # host then exits and its launch respawns everything cleanly.
-        on_exit=[Shutdown(reason='realsense2_camera_node exited')],
-        parameters=[{
+    #
+    # camera_in_container:=true (default since 2026-09-27) loads the driver INTO the
+    # component container, as NVIDIA's own examples do, so images reach the splitter,
+    # cuVSLAM and nvblox in memory. As a separate process every image crossed DDS -
+    # UDP only in this container, best effort, ~100 MB/s - and a third of the
+    # projector-off frames never arrived: the camera sent 45 pairs/s, cuVSLAM
+    # processed 31.4/s at 2.5 ms each (measured on Rosie). false = the old process.
+    camera_in_container = LaunchConfiguration('camera_in_container')
+    camera_params = {
             'enable_infra1': True,
             'enable_infra2': True,
             'enable_depth': True,
@@ -97,7 +96,25 @@ def generate_launch_description():
             'color_qos': 'DEFAULT',
             'color_info_qos': 'DEFAULT',
             'initial_reset': True,
-        }],
+    }
+    realsense_camera_node = Node(
+        name='camera',
+        namespace='',
+        package='realsense2_camera',
+        executable='realsense2_camera_node',
+        output='screen',
+        # If either process dies, take the whole launch down: the wrapper on the
+        # host then exits and its launch respawns everything cleanly.
+        on_exit=[Shutdown(reason='realsense2_camera_node exited')],
+        parameters=[camera_params],
+        condition=UnlessCondition(camera_in_container),
+    )
+    realsense_camera_component = ComposableNode(
+        name='camera',
+        namespace='',
+        package='realsense2_camera',
+        plugin='realsense2_camera::RealSenseNodeFactory',
+        parameters=[camera_params],
     )
 
     # Routes projector-off frames to infra outputs, projector-on frames to depth.
@@ -193,7 +210,19 @@ def generate_launch_description():
         ],
     )
 
+    # One container either way; with camera_in_container the camera is its first
+    # component (so a camera failure still takes the launch down, as before).
     container = ComposableNodeContainer(
+        name='nvblox_container',
+        namespace='',
+        package='rclcpp_components',
+        executable='component_container_mt',
+        composable_node_descriptions=[realsense_camera_component, splitter_node, visual_slam_node, nvblox_node],
+        output='screen',
+        on_exit=[Shutdown(reason='nvblox container exited')],
+        condition=IfCondition(camera_in_container),
+    )
+    container_without_camera = ComposableNodeContainer(
         name='nvblox_container',
         namespace='',
         package='rclcpp_components',
@@ -201,6 +230,7 @@ def generate_launch_description():
         composable_node_descriptions=[splitter_node, visual_slam_node, nvblox_node],
         output='screen',
         on_exit=[Shutdown(reason='nvblox container exited')],
+        condition=UnlessCondition(camera_in_container),
     )
 
     # The browser feed. ros_compressed passes the camera's own JPEG frames
@@ -246,7 +276,11 @@ def generate_launch_description():
         DeclareLaunchArgument('web_video', default_value='true',
                               description='serve the compressed colour stream over HTTP (web_video_server)'),
         DeclareLaunchArgument('web_video_port', default_value='8080'),
+        DeclareLaunchArgument('camera_in_container', default_value='true',
+                              description='load the RealSense driver into the component container (images in memory); '
+                                          'false = a separate process, images over DDS'),
         container,
+        container_without_camera,
         realsense_camera_node,
         web_video_node,
     ])
