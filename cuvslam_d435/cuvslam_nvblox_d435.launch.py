@@ -21,12 +21,16 @@ The host's realsense2_camera node must be stopped first (one camera owner).
 
 The colour stream is on as well, for people rather than nodes: the camera
 publishes it JPEG-compressed (/camera/color/image_raw/compressed, for RViz over
-Wi-Fi) and a web_video_server in the same container serves it to any browser on
-port 8080. Nothing on the robot subscribes to either, and image_transport only
-encodes for subscribers, so they cost nothing until someone looks. They live in
-this container because the compressed transport and web_video_server debs cannot
-go on the Jetson host: apt would replace JetPack's OpenCV and remove
-nvidia-jetpack to install them (checked 2026-09-23).
+Wi-Fi). image_transport only encodes for subscribers, so it costs nothing until
+someone looks.
+
+web_video_server is off by default (web_video:=false) since 2026-09-27: it hung
+under load; browsers get this camera from jetnano_bringup csi_cameras on port 8082
+(http://<robot>:8082/d435.mjpg). web_video:=true brings it back on web_video_port.
+
+The compressed transport and web_video_server live in this container because
+their debs cannot go on the Jetson host: apt would replace JetPack's OpenCV and
+remove nvidia-jetpack to install them (checked 2026-09-23).
 """
 
 import os
@@ -249,11 +253,9 @@ def generate_launch_description():
         condition=UnlessCondition(camera_in_container),
     )
 
-    # The browser feed. ros_compressed passes the camera's own JPEG frames
-    # through as MJPEG, so this encodes nothing; it subscribes only while a
-    # browser is connected. Not fatal to the launch: odometry does not need it.
-    #     http://<robot>:8080/                                        topic list
-    #     http://<robot>:8080/stream?topic=/camera/color/image_raw    the feed
+    # The old browser feed, off by default (web_video:=true). ros_compressed passes
+    # the camera's own JPEG frames through as MJPEG on web_video_port; not fatal to
+    # the launch. Browsers use csi_cameras (:8082/d435.mjpg) since 2026-09-27.
     web_video_node = Node(
         package='web_video_server',
         executable='web_video_server',
@@ -292,8 +294,9 @@ def generate_launch_description():
                               description='paint the colour camera onto the 3D map (needs color:=true)'),
         DeclareLaunchArgument('color_profile', default_value='640,480,30',
                               description="colour stream 'W,H,FPS'"),
-        DeclareLaunchArgument('web_video', default_value='true',
-                              description='serve the compressed colour stream over HTTP (web_video_server)'),
+        DeclareLaunchArgument('web_video', default_value='false',
+                              description='also serve the colour stream over HTTP with web_video_server '
+                                          '(retired 2026-09-27: browsers use csi_cameras on 8082)'),
         DeclareLaunchArgument('web_video_port', default_value='8080'),
         DeclareLaunchArgument('camera_in_container', default_value='true',
                               description='load the RealSense driver into the component container (images in memory); '

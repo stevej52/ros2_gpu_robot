@@ -12,9 +12,11 @@ odom -> base_footprint.
 The host's realsense2_camera node must be stopped first: the camera can have one owner.
 
 The colour stream is on as well, for people rather than nodes: JPEG-compressed on
-/camera/color/image_raw/compressed for RViz over Wi-Fi, and served to any browser on
-port 8080 by a web_video_server in the same container. Both are idle until someone
-looks. See cuvslam_nvblox_d435.launch.py for why they live in the container.
+/camera/color/image_raw/compressed for RViz over Wi-Fi; idle until someone looks.
+web_video_server is off by default (web_video:=false) since 2026-09-27: it hung
+under load; browsers get this camera from jetnano_bringup csi_cameras on port 8082
+(http://<robot>:8082/d435.mjpg). web_video:=true brings it back on web_video_port.
+See cuvslam_nvblox_d435.launch.py for why these live in the container.
 """
 
 import launch
@@ -111,9 +113,8 @@ def generate_launch_description():
         on_exit=[Shutdown(reason='visual slam container exited')],
     )
 
-    # The browser feed: the camera's own JPEG frames passed through as MJPEG
-    # (encodes nothing, subscribes only while a browser is connected).
-    #     http://<robot>:8080/stream?topic=/camera/color/image_raw
+    # The old browser feed, off by default (web_video:=true): the camera's own JPEG
+    # frames passed through as MJPEG on web_video_port. Browsers use csi_cameras (:8082).
     web_video_node = Node(
         package='web_video_server',
         executable='web_video_server',
@@ -146,8 +147,9 @@ def generate_launch_description():
                               description='stream the colour camera too, for RViz and the browser feed; nothing on the robot uses it'),
         DeclareLaunchArgument('color_profile', default_value='640,480,30',
                               description="colour stream 'W,H,FPS'"),
-        DeclareLaunchArgument('web_video', default_value='true',
-                              description='serve the compressed colour stream over HTTP (web_video_server)'),
+        DeclareLaunchArgument('web_video', default_value='false',
+                              description='also serve the colour stream over HTTP with web_video_server '
+                                          '(retired 2026-09-27: browsers use csi_cameras on 8082)'),
         DeclareLaunchArgument('web_video_port', default_value='8080'),
         container,
         realsense_camera_node,

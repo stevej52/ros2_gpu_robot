@@ -176,7 +176,12 @@ Both launch files also stream the colour sensor (`color:=true`, 640x480 at 30 Hz
 people rather than nodes. Nothing on the robot subscribes to it, and image_transport only
 encodes for subscribers, so it costs nothing until someone looks. Two ways to look:
 
-- **Any browser, no ROS**: `http://192.168.1.7:8080/stream?topic=/camera/color/image_raw`
+- **Any browser, no ROS**: `http://192.168.1.7:8082/d435.mjpg` (`d435.jpg` for one frame;
+  `?fps=12&w=320&q=50` to thin it), relayed by `jetnano_bringup` `csi_cameras` with the two
+  Pi cameras (`front`, `rear`), or the dashboard at `http://192.168.1.7:8081/dash`. The
+  `web_video_server` described next was retired on 2026-09-27 (it hung under load) and is
+  off by default (`web_video:=true` brings it back on port 8080):
+  `http://192.168.1.7:8080/stream?topic=/camera/color/image_raw`
   (the root page lists the topics; `/snapshot?topic=...` gives one JPEG). Served by a
   `web_video_server` in the container with `default_stream_type: ros_compressed`, which
   passes the camera's own JPEG frames through as MJPEG and encodes nothing. HTTP is TCP,
