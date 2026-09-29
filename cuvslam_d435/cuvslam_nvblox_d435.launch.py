@@ -205,7 +205,7 @@ def generate_launch_description():
             'use_color': ParameterValue(color_mesh, value_type=bool),
             # the layer streamer sends changed blocks only, within this budget (Wi-Fi to RViz)
             'layer_streamer_bandwidth_limit_mbps': 8.0,
-            # ... and only when asked (layers:=true or color_mesh:=true). 2026-09-28 12:22 the
+            # ... and only when asked (layers:=true). 2026-09-28 12:22 the
             # whole camera container died mid-drive: "std::system_error: Invalid argument" -
             # the core dump: NvbloxNode::tick -> publishLayers -> serializeAndpublishSubscribed
             # Layers -> getBlocksToUpdate(kLayerStreamer) -> std::future::wait -> thread::join
@@ -213,9 +213,10 @@ def generate_launch_description():
             # subscribed to its layers dropped and came back with a Wi-Fi flap 4 s earlier.
             # Nothing on the robot uses the layers (Nav2 has the ESDF slice and map_grid);
             # "off" is one per 30 years - 0 may mean "every tick" to nvblox.
+            # color_mesh still paints and exports the colour map (save_ply); only watching
+            # it live in RViz needs layers:=true.
             'publish_layer_rate_hz': ParameterValue(PythonExpression(
-                ["5.0 if ('", layers, "' == 'true' or '", color_mesh, "' == 'true') else 1e-9"]),
-                value_type=float),
+                ["5.0 if '", layers, "' == 'true' else 1e-9"]), value_type=float),
             'use_lidar': False,
             'global_frame': 'odom',
             'pose_frame': base_frame,
@@ -311,7 +312,7 @@ def generate_launch_description():
                               description='stream the colour camera too, for RViz and the browser feed; nothing on the robot uses it'),
         DeclareLaunchArgument('layers', default_value='false',
                               description='stream the 3D map layers to viewers (RViz: mesh, tsdf/color '
-                                          'layer markers); color_mesh:=true turns it on too'),
+                                          'layer markers) - off: a race in it crashed the container'),
         DeclareLaunchArgument('color_mesh', default_value='false',
                               description='paint the colour camera onto the 3D map (needs color:=true)'),
         DeclareLaunchArgument('color_profile', default_value='640,480,30',
