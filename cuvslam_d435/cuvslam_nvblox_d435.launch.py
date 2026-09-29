@@ -38,7 +38,7 @@ import os
 import launch
 from launch.actions import DeclareLaunchArgument, Shutdown
 from launch.conditions import IfCondition, UnlessCondition
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
 from launch_ros.parameter_descriptions import ParameterValue
@@ -61,6 +61,7 @@ def generate_launch_description():
     color = LaunchConfiguration('color')
     color_profile = LaunchConfiguration('color_profile')
     color_mesh = LaunchConfiguration('color_mesh')
+    layers = LaunchConfiguration('layers')
     web_video = LaunchConfiguration('web_video')
     web_video_port = LaunchConfiguration('web_video_port')
 
@@ -204,6 +205,17 @@ def generate_launch_description():
             'use_color': ParameterValue(color_mesh, value_type=bool),
             # the layer streamer sends changed blocks only, within this budget (Wi-Fi to RViz)
             'layer_streamer_bandwidth_limit_mbps': 8.0,
+            # ... and only when asked (layers:=true or color_mesh:=true). 2026-09-28 12:22 the
+            # whole camera container died mid-drive: "std::system_error: Invalid argument" -
+            # the core dump: NvbloxNode::tick -> publishLayers -> serializeAndpublishSubscribed
+            # Layers -> getBlocksToUpdate(kLayerStreamer) -> std::future::wait -> thread::join
+            # EINVAL, a race in nvblox's layer streamer, set off when a remote RViz
+            # subscribed to its layers dropped and came back with a Wi-Fi flap 4 s earlier.
+            # Nothing on the robot uses the layers (Nav2 has the ESDF slice and map_grid);
+            # "off" is one per 30 years - 0 may mean "every tick" to nvblox.
+            'publish_layer_rate_hz': ParameterValue(PythonExpression(
+                ["5.0 if ('", layers, "' == 'true' or '", color_mesh, "' == 'true') else 1e-9"]),
+                value_type=float),
             'use_lidar': False,
             'global_frame': 'odom',
             'pose_frame': base_frame,
@@ -297,6 +309,9 @@ def generate_launch_description():
                                           'checked on a 5 ms tick, so the real rate lands a little under'),
         DeclareLaunchArgument('color', default_value='true',
                               description='stream the colour camera too, for RViz and the browser feed; nothing on the robot uses it'),
+        DeclareLaunchArgument('layers', default_value='false',
+                              description='stream the 3D map layers to viewers (RViz: mesh, tsdf/color '
+                                          'layer markers); color_mesh:=true turns it on too'),
         DeclareLaunchArgument('color_mesh', default_value='false',
                               description='paint the colour camera onto the 3D map (needs color:=true)'),
         DeclareLaunchArgument('color_profile', default_value='640,480,30',
