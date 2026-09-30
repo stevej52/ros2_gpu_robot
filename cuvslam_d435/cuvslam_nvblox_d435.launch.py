@@ -229,8 +229,7 @@ def generate_launch_description():
             # home, which left the planner no path. 3 m still covers the whole 4 x 4 m local
             # costmap (to its corners, 2.8 m) and the collision guard's zones.
             'map_clearing_radius_m': 3.0,
-            # Depth only out to 2.5 m (base file: 5), with the pixels next to invalid ones
-            # dropped (base file: off). 2026-09-29, the dining room: the camera walled off the
+            # Depth only out to 2.5 m (base file: 5). 2026-09-29, the dining room: the camera walled off the
             # 0.7 m between the table's end and the cabinet, where the lidar and the house map
             # both saw clear floor. Every camera obstacle there that the lidar never saw lay
             # behind a table or chair leg on the camera's line of sight, first marked from a
@@ -239,9 +238,10 @@ def generate_launch_description():
             # grids, the cap alone reopens the passage (0.07 -> 0.21 m clear each side, 0.18
             # needed; jetnano_robot tools/drive_analysis/camera_streaks.py). Low things
             # are still marked once she is within 2.5 m, which covers the local costmap.
+            # NOT static_mapper.do_depth_preprocessing (NVIDIA's drop-the-pixels-beside-invalid-
+            # ones): tried the same evening, nvblox died on the first depth frame every start,
+            # "image_impl.h:242 Check failed: mask/image size mismatch", and took cuVSLAM down.
             'static_mapper.projective_integrator_max_integration_distance_m': 2.5,
-            'static_mapper.do_depth_preprocessing': True,
-            'static_mapper.depth_preprocessing_num_dilations': 3,
             'esdf_slice_bounds_visualization_attachment_frame_id': base_frame,
             'workspace_height_bounds_visualization_attachment_frame_id': base_frame,
             'voxel_size': ParameterValue(voxel, value_type=float),
