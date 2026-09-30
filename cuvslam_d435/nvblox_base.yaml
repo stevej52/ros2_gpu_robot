@@ -13,7 +13,9 @@
     integrate_depth_rate_hz: 40.0
     integrate_color_rate_hz: 5.0
     integrate_lidar_rate_hz: 40.0
-    update_mesh_rate_hz: 5.0
+    # 1 (was 5): the mesh is only read by save_ply (save_3d_map.sh), nobody views it live;
+    # meshing the changed blocks once a second is the same work in fewer calls (2026-09-30)
+    update_mesh_rate_hz: 1.0
     update_esdf_rate_hz: 10.0
     publish_layer_rate_hz: 5.0
     publish_debug_vis_rate_hz: 2.0

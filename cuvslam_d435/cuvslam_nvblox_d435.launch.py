@@ -325,7 +325,12 @@ def generate_launch_description():
                               description='nvblox 2D slice: lowest obstacle height, odom frame (floor = 0; any lower and the floor itself is marked)'),
         DeclareLaunchArgument('slice_max_height', default_value='0.35',
                               description='nvblox 2D slice: highest obstacle height, odom frame (chassis top)'),
-        DeclareLaunchArgument('map_rate_hz', default_value='45.0',
+        # 20 since 2026-09-30 (was 45, one per depth frame): the collision guard is the only
+        # consumer that wants it fast, and at her 0.3 m/s a slice every 50 ms is one every
+        # 1.5 cm of travel, with +28 ms on the camera's worst-case stop latency (still well
+        # inside the lidar path's 150-290 ms). The planner's grid is 2.5 a second regardless.
+        # 45 cost the ESDF update, the slice message and grid_to_points 2.25x the work.
+        DeclareLaunchArgument('map_rate_hz', default_value='20.0',
                               description='nvblox 2D map updates per second (grid, obstacle points for the collision guard); '
                                           'checked on a 5 ms tick, so the real rate lands a little under'),
         DeclareLaunchArgument('color', default_value='true',
