@@ -222,6 +222,13 @@ def generate_launch_description():
             'pose_frame': base_frame,
             'use_tf_transforms': True,
             'map_clearing_frame_id': base_frame,
+            # Forget what is more than 3 m from her (base file: 7 m). The map is built in the
+            # odom frame, which drifts from the world; an obstacle seen minutes ago is placed by
+            # odom as it was then. 2026-09-29, an hour on the floor: odom ended 72 deg and 7.7 m
+            # off the map, and old obstacles came back as ghost walls - one across the corridor
+            # home, which left the planner no path. 3 m still covers the whole 4 x 4 m local
+            # costmap (to its corners, 2.8 m) and the collision guard's zones.
+            'map_clearing_radius_m': 3.0,
             'esdf_slice_bounds_visualization_attachment_frame_id': base_frame,
             'workspace_height_bounds_visualization_attachment_frame_id': base_frame,
             'voxel_size': ParameterValue(voxel, value_type=float),
