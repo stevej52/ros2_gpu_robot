@@ -64,6 +64,13 @@ def generate_launch_description():
             'rgb_camera.profile': color_profile,
             # Reliable on purpose: RViz's Image display and web_video_server
             # subscribe reliably by default and would not match best effort.
+            # High Accuracy (3): the stereo matcher keeps only confident disparities. On
+            # 2026-10-02 (drives 21-22) a stripe of sunlight on the floor by the east curtain
+            # came out of the Default preset as solid obstacle 0.2-0.5 m in front of the wall
+            # and closed the hall to the planner. Fewer depth points, fewer false ones. The
+            # firmware (5.12.10) refused the change at runtime (set_xu failed); here it is
+            # applied before streaming. If the camera does not come up, this is the suspect.
+            'depth_module.visual_preset': 3,
             'color_qos': 'DEFAULT',
             'color_info_qos': 'DEFAULT',
             'initial_reset': True,
