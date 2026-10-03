@@ -83,6 +83,13 @@ def generate_launch_description():
             'enable_color': ParameterValue(color, value_type=bool),
             'enable_gyro': False,
             'enable_accel': False,
+            # High Accuracy (3): the stereo matcher keeps only confident disparities. On
+            # 2026-10-02 (drives 21-22) a stripe of sunlight on the floor by the east curtain
+            # came out of the Default preset as solid obstacle 0.2-0.5 m in front of the wall
+            # and closed the hall to the planner. Fewer depth points, fewer false ones. The
+            # firmware (5.12.10) refused the change at runtime (set_xu failed); here it is
+            # applied before streaming. If the camera does not come up, this is the suspect.
+            'depth_module.visual_preset': 3,
             'depth_module.emitter_enabled': 1,
             'depth_module.emitter_on_off': True,
             'depth_module.infra_profile': profile,
