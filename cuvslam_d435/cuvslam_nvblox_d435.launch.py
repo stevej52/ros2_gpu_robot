@@ -236,6 +236,13 @@ def generate_launch_description():
             # home, which left the planner no path. 3 m still covers the whole 4 x 4 m local
             # costmap (to its corners, 2.8 m) and the collision guard's zones.
             'map_clearing_radius_m': 3.0,
+            # Less GPU memory traffic (2026-10-04): the only kernel crash on record is the GPU driver
+            # failing while it MAPPED memory (nvgpu_vm_map, PID = this container), and drive 29 died
+            # on its second lap. Faded blocks are kept and reused instead of freed and mapped again
+            # five times a second; the 3D mesh (save_ply only) is not built while she drives.
+            'static_mapper.decay_integrator_deallocate_decayed_blocks': False,
+            'dynamic_mapper.decay_integrator_deallocate_decayed_blocks': False,
+            'update_mesh_rate_hz': 1e-9,
             # Depth only out to 2.5 m (base file: 5). 2026-09-29, the dining room: the camera walled off the
             # 0.7 m between the table's end and the cabinet, where the lidar and the house map
             # both saw clear floor. Every camera obstacle there that the lidar never saw lay
