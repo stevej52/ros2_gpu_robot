@@ -335,8 +335,8 @@ def generate_launch_description():
                                           'pairs arrive every 22 ms nominal with the emitter alternating, and the camera drops some'),
         DeclareLaunchArgument('ground_constraint', default_value='false'),
         DeclareLaunchArgument('voxel_size', default_value='0.05'),
-        DeclareLaunchArgument('slice_min_height', default_value='0.10',
-                              description='nvblox 2D slice: lowest obstacle height, odom frame (floor = 0; any lower and the floor itself is marked)'),
+        DeclareLaunchArgument('slice_min_height', default_value='0.08',
+                              description='nvblox 2D slice: lowest obstacle height, odom frame (floor = 0; 0.10 until 2026-10-07, lowered for the ~10 cm robot vacuum at turn 4)'),
         DeclareLaunchArgument('slice_max_height', default_value='0.35',
                               description='nvblox 2D slice: highest obstacle height, odom frame (chassis top)'),
         # 20 since 2026-09-30 (was 45, one per depth frame): the collision guard is the only
