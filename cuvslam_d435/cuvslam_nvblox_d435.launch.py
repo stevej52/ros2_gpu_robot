@@ -90,8 +90,14 @@ def generate_launch_description():
             # firmware (5.12.10) refused the change at runtime (set_xu failed); here it is
             # applied before streaming. If the camera does not come up, this is the suspect.
             'depth_module.visual_preset': 3,
-            'depth_module.emitter_enabled': 1,
-            'depth_module.emitter_on_off': True,
+            # The projector starts OFF and alternation is switched on live, once the camera
+            # streams, by jetnano_bringup sensor_sleep (its camera keeper). FW 5.17.3.10 with
+            # librealsense 2.59.1 refuses emitter_on_off before streaming ("hwmon command 0x7b
+            # failed", 2026-10-12) but takes it live, and then really alternates (projector-flag
+            # 0 frames as clean as with the projector off). Off at start, every frame goes to
+            # cuVSLAM in the meantime; nvblox's depth waits for the keeper.
+            'depth_module.emitter_enabled': 0,
+            'depth_module.emitter_on_off': False,
             'depth_module.infra_profile': profile,
             'depth_module.depth_profile': profile,
             'depth_module.profile': profile,
