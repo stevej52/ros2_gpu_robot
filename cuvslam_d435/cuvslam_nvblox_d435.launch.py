@@ -292,11 +292,15 @@ def generate_launch_description():
 
     # One container either way; with camera_in_container the camera is its first
     # component (so a camera failure still takes the launch down, as before).
+    # component_container_isolated: one single-threaded executor per component. The _mt
+    # container's 7 threads spent about half of its 113 % of a core rebuilding a shared wait
+    # set, on mutexes and on malloc (perf, 2026-10-12); isolated: 64 %, every stream as fast
+    # (VO 45 Hz, depth 40, nvblox 19, colour 27), no VO gap warnings.
     container = ComposableNodeContainer(
         name='nvblox_container',
         namespace='',
         package='rclcpp_components',
-        executable='component_container_mt',
+        executable='component_container_isolated',
         composable_node_descriptions=[realsense_camera_component, splitter_node, visual_slam_node, nvblox_node],
         output='screen',
         on_exit=[Shutdown(reason='nvblox container exited')],
@@ -306,7 +310,7 @@ def generate_launch_description():
         name='nvblox_container',
         namespace='',
         package='rclcpp_components',
-        executable='component_container_mt',
+        executable='component_container_isolated',
         composable_node_descriptions=[splitter_node, visual_slam_node, nvblox_node],
         output='screen',
         on_exit=[Shutdown(reason='nvblox container exited')],
